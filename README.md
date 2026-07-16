@@ -1,6 +1,6 @@
 # RoomView
 
-A native Apple app (iOS + macOS) for viewing 3D scans of interior spaces — built to solve a specific problem: tidying up a garage without being able to stand in it.
+A native Apple app (iOS + macOS) for viewing 3D scans of interior spaces — built to solve a specific problem: planning a garage reorganization without needing to be in the garage at the time.
 
 ## The problem
 
@@ -34,6 +34,8 @@ RoomView is a viewer purpose-built for that use case: look at the *inside* of a 
 
 ### Future
 - In-app scanning (ARKit-based capture), removing the dependency on external scanning apps
+- Adding to the room mesh with addition scanning after the fact
+- Allowing close-up scanning of particular areas to get better detail (e.g., a pegboard full of tools)
 - Possible inventory features on top of photo pins (naming, notes, search) if useful once the viewer is in daily use
 - Possible visionOS support
 
