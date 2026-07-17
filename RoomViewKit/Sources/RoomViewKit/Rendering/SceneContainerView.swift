@@ -10,6 +10,7 @@ struct SceneContainerView: View {
     let root: Entity
     var clipPlaneController: ClipPlaneController?
     var firstPersonController: FirstPersonController?
+    var orbitCameraController: OrbitCameraController?
     var cameraMode: SceneCameraMode
 
     @State private var lastLookDragTranslation: CGSize = .zero
@@ -18,11 +19,13 @@ struct SceneContainerView: View {
         root: Entity,
         clipPlaneController: ClipPlaneController? = nil,
         firstPersonController: FirstPersonController? = nil,
+        orbitCameraController: OrbitCameraController? = nil,
         cameraMode: SceneCameraMode = .orbit
     ) {
         self.root = root
         self.clipPlaneController = clipPlaneController
         self.firstPersonController = firstPersonController
+        self.orbitCameraController = orbitCameraController
         self.cameraMode = cameraMode
     }
 
@@ -46,6 +49,7 @@ struct SceneContainerView: View {
 
             clipPlaneController?.startFollowingCamera(camera, in: content)
             firstPersonController?.start(camera: camera, in: content)
+            orbitCameraController?.start(camera: camera, in: content)
         }
     }
 

@@ -1,8 +1,11 @@
 import SwiftUI
 import RealityKit
+import UniformTypeIdentifiers
 
 struct ViewerView: View {
     let scan: Scan
+
+    @Environment(\.modelContext) private var modelContext
 
     @State private var loadedRoot: Entity?
     @State private var loadErrorMessage: String?
@@ -11,9 +14,13 @@ struct ViewerView: View {
     @State private var clipRange: ClosedRange<Float> = 0...1
 
     @State private var firstPersonController = FirstPersonController()
+    @State private var orbitCameraController = OrbitCameraController()
     @State private var cameraMode: SceneCameraMode = .orbit
     @State private var povViewDistance: Float = 0
     @State private var pressedKeys: Set<Character> = []
+
+    @State private var isImporterPresented = false
+    @State private var importErrorMessage: String?
 
     private let maxPovViewDistance: Float = 6
 
@@ -25,13 +32,14 @@ struct ViewerView: View {
                         root: loadedRoot,
                         clipPlaneController: clipPlaneController,
                         firstPersonController: firstPersonController,
+                        orbitCameraController: orbitCameraController,
                         cameraMode: cameraMode
                     )
                     #if os(macOS)
                     .focusable()
-                    .onKeyPress(keys: ["w", "a", "s", "d", "i", "j", "k", "l"], phases: [.down, .up]) { press in
+                    .onKeyPress(keys: ["w", "a", "s", "d", "i", "j", "k", "l"], phases: [.down, .up, .repeat]) { press in
                         let key = Character(press.key.character.lowercased())
-                        if press.phase == .down {
+                        if press.phase == .down || press.phase == .repeat {
                             pressedKeys.insert(key)
                         } else if press.phase == .up {
                             pressedKeys.remove(key)
@@ -42,8 +50,11 @@ struct ViewerView: View {
                     #endif
 
                     HStack(alignment: .top) {
-                        if cameraMode == .orbit {
-                            clipPlaneControl
+                        VStack(alignment: .leading, spacing: 8) {
+                            importButton
+                            if cameraMode == .orbit {
+                                clipPlaneControl
+                            }
                         }
                         Spacer()
                         modeControls
@@ -66,6 +77,29 @@ struct ViewerView: View {
                 .onChange(of: cameraMode) { _, newMode in
                     handleModeChange(newMode)
                 }
+                .fileImporter(isPresented: $isImporterPresented, allowedContentTypes: [.usdz]) { result in
+                    switch result {
+                    case .success(let url):
+                        do {
+                            _ = try ScanImporter.importScan(from: url, into: modelContext)
+                        } catch {
+                            importErrorMessage = "Import failed: \(error.localizedDescription)"
+                        }
+                    case .failure(let error):
+                        importErrorMessage = error.localizedDescription
+                    }
+                }
+                .alert(
+                    "Import Failed",
+                    isPresented: Binding(
+                        get: { importErrorMessage != nil },
+                        set: { if !$0 { importErrorMessage = nil } }
+                    )
+                ) {
+                    Button("OK") { importErrorMessage = nil }
+                } message: {
+                    Text(importErrorMessage ?? "")
+                }
             } else if let loadErrorMessage {
                 VStack(spacing: 8) {
                     Text("Failed to load scan")
@@ -82,6 +116,19 @@ struct ViewerView: View {
         .task(id: scan.id) {
             await loadScan()
         }
+    }
+
+    private var importButton: some View {
+        Button {
+            importErrorMessage = nil
+            isImporterPresented = true
+        } label: {
+            Image(systemName: "plus")
+                .font(.body)
+                .padding(8)
+        }
+        .buttonStyle(.plain)
+        .background(.ultraThinMaterial, in: Circle())
     }
 
     private var clipPlaneControl: some View {
@@ -145,6 +192,7 @@ struct ViewerView: View {
                 (bounds.min.z + bounds.max.z) / 2
             )
             firstPersonController.warp(to: floorCenter)
+            orbitCameraController.pivot = (bounds.min + bounds.max) / 2
 
             loadedRoot = entity
         } catch {
@@ -153,6 +201,8 @@ struct ViewerView: View {
     }
 
     private func handleModeChange(_ newMode: SceneCameraMode) {
+        pressedKeys.removeAll()
+        orbitCameraController.turnInput = .zero
         switch newMode {
         case .pov:
             clipPlaneController.isEnabled = false
@@ -162,7 +212,6 @@ struct ViewerView: View {
             firstPersonController.isDrivingCamera = false
             firstPersonController.moveInput = .zero
             firstPersonController.turnInput = .zero
-            pressedKeys.removeAll()
             clipPlaneController.isEnabled = true
         }
     }
@@ -183,7 +232,15 @@ struct ViewerView: View {
         if pressedKeys.contains("j") { turnX -= 1 }
         if pressedKeys.contains("i") { turnY += 1 }
         if pressedKeys.contains("k") { turnY -= 1 }
-        firstPersonController.turnInput = SIMD2(turnX, turnY)
+        let turnInput = SIMD2<Float>(turnX, turnY)
+        switch cameraMode {
+        case .pov:
+            firstPersonController.turnInput = turnInput
+            orbitCameraController.turnInput = .zero
+        case .orbit:
+            orbitCameraController.turnInput = turnInput
+            firstPersonController.turnInput = .zero
+        }
     }
     #endif
 }
