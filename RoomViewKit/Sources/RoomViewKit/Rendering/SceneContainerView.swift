@@ -1,16 +1,38 @@
 import SwiftUI
 import RealityKit
 
+enum SceneCameraMode {
+    case orbit
+    case pov
+}
+
 struct SceneContainerView: View {
     let root: Entity
     var clipPlaneController: ClipPlaneController?
+    var firstPersonController: FirstPersonController?
+    var cameraMode: SceneCameraMode
 
-    init(root: Entity, clipPlaneController: ClipPlaneController? = nil) {
+    @State private var lastLookDragTranslation: CGSize = .zero
+
+    init(
+        root: Entity,
+        clipPlaneController: ClipPlaneController? = nil,
+        firstPersonController: FirstPersonController? = nil,
+        cameraMode: SceneCameraMode = .orbit
+    ) {
         self.root = root
         self.clipPlaneController = clipPlaneController
+        self.firstPersonController = firstPersonController
+        self.cameraMode = cameraMode
     }
 
     var body: some View {
+        realityView
+            .realityViewCameraControls(cameraMode == .pov ? .none : .orbit)
+            .gesture(lookGesture, isEnabled: cameraMode == .pov)
+    }
+
+    private var realityView: some View {
         RealityView { content in
             content.add(root)
 
@@ -23,7 +45,23 @@ struct SceneContainerView: View {
             content.cameraTarget = root
 
             clipPlaneController?.startFollowingCamera(camera, in: content)
+            firstPersonController?.start(camera: camera, in: content)
         }
-        .realityViewCameraControls(.orbit)
+    }
+
+    private var lookGesture: some Gesture {
+        DragGesture(minimumDistance: 0)
+            .onChanged { value in
+                guard let firstPersonController else { return }
+                let delta = CGSize(
+                    width: value.translation.width - lastLookDragTranslation.width,
+                    height: value.translation.height - lastLookDragTranslation.height
+                )
+                firstPersonController.applyLookDelta(delta)
+                lastLookDragTranslation = value.translation
+            }
+            .onEnded { _ in
+                lastLookDragTranslation = .zero
+            }
     }
 }

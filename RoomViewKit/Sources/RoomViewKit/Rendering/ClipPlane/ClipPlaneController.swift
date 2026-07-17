@@ -19,6 +19,13 @@ final class ClipPlaneController {
     /// starts being clipped away. 0 clips nothing (full scene visible).
     var threshold: Float = 0
 
+    /// Whether the plane is actively clipping. Disabled while first-person mode
+    /// is driving the shared camera, so walking up to geometry doesn't slice it
+    /// away the way orbiting-and-approaching would.
+    var isEnabled: Bool = true {
+        didSet { updatePlaneFromCamera() }
+    }
+
     func apply(to root: Entity) {
         targets.removeAll()
         applyRecursive(root)
@@ -54,7 +61,10 @@ final class ClipPlaneController {
     }
 
     private func updatePlaneFromCamera() {
-        guard let camera else { return }
+        guard isEnabled, let camera else {
+            setPlane(normal: SIMD3<Float>(0, 0, 1), offset: .greatestFiniteMagnitude)
+            return
+        }
         let forward = camera.orientation(relativeTo: nil).act(SIMD3<Float>(0, 0, -1))
         let cameraPosition = camera.position(relativeTo: nil)
 
