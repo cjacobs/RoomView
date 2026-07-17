@@ -6,15 +6,17 @@ RoomView solves a real problem the user has: 3D scanning apps (Polycam, 3d Scann
 
 The repo is currently empty except for `README.md` (the agreed product spec). This plan scaffolds the app from nothing through a working v1: import a USDZ scan, orbit it, slice it open with a clip plane, and pin in-situ photos to it. Explicitly out of scope for v1: inventory/cataloging on pins, in-app scanning, incremental re-scanning — all noted as future work in the README already.
 
-Key constraint: this planning/coding session runs on Linux and cannot compile or run Xcode/Swift — the user builds and tests on their own Mac. The plan is broken into small milestones so the user can build and give feedback after each one, and technically risky spots (mainly the clip-plane rendering) call out a concrete fallback in case an API doesn't behave as expected once actually compiled.
+This plan was originally drafted in a Linux session that couldn't compile Swift, so it was broken into small milestones for the user to build/test on their own Mac between rounds. Later sessions run directly on the user's Mac with a full Xcode toolchain, so builds, `xcodebuild`, and even launching the app/simulator can now be verified directly — the milestone structure is kept anyway since it's still the right way to catch design issues early.
 
-## Platform decisions (already made)
+## Platform decisions
 
 - iOS + macOS, one codebase (visionOS not targeted now, not precluded later)
 - SwiftUI + RealityKit
-- Minimum: iOS 17 / macOS 14
+- Minimum: **iOS 26 / macOS 26** (raised from an original iOS 17/macOS 14 target during M1 — see note below)
 - USDZ as the v1 import format
 - No cataloging features on pins in v1
+
+**Deployment target note (discovered during M1):** `ARView` (RealityKit's UIKit-based view) is only available on iOS and Mac Catalyst — never on native macOS. The actual cross-platform way to host RealityKit content in SwiftUI on real macOS is `RealityView`, which requires iOS 18/macOS 15+. Since this is a personal app that only needs to run on the user's own current-OS devices, the floor was raised to iOS 26/macOS 26 (matching the installed Xcode 26.5 SDK) rather than reaching for Mac Catalyst.
 
 ## Project structure
 
@@ -36,7 +38,7 @@ RoomView/
 │   │   │   ├── ScanImporter.swift     # fileImporter + copy into app storage
 │   │   │   └── ScanLibrary.swift      # on-disk layout under Application Support
 │   │   ├── Rendering/
-│   │   │   ├── SceneContainerView.swift   # UIViewRepresentable/NSViewRepresentable wrapping ARView
+│   │   │   ├── SceneContainerView.swift   # RealityView-based scene host (shared, no per-platform wrapping needed)
 │   │   │   ├── SceneCoordinator.swift     # entity graph, raycasts
 │   │   │   ├── OrbitCameraController.swift
 │   │   │   ├── PlaceholderRoomBuilder.swift  # M1 synthetic room (no assets needed)
@@ -101,7 +103,7 @@ Photos are copied to `Application Support/RoomView/Scans/<scan-uuid>/Photos/<pin
 Each one is independently buildable/testable by the user on their Mac before the next starts.
 
 - **M0 — Scaffold.** User creates the Xcode Multiplatform App project + adds the local `RoomViewKit` package (exact click-by-click steps provided). *Done when:* "Hello RoomView" builds and runs on both an iOS simulator and macOS.
-- **M1 — Procedural viewer + orbit camera.** Build a placeholder room entirely in code (`MeshResource.generateBox` walls/floor/ceiling + a couple of prop boxes) — no scan files needed yet. Orbit drag + pinch/scroll zoom via `ARView(.nonAR)` wrapped per platform. *Done when:* user can orbit a synthetic boxy room on both platforms.
+- **M1 — Procedural viewer + orbit camera. ✅ Done.** Built a placeholder room entirely in code (`MeshResource.generateBox` floor/3 walls + 3 prop boxes) via `RealityView` with built-in `.realityViewCameraControls(.orbit)`, plus an explicit `PerspectiveCamera` using `.horizontal` field-of-view orientation so room width frames consistently across portrait/landscape (the default vertical-FOV auto-fit looked zoomed-out in landscape). Verified building and running on both macOS and iOS Simulator via `xcodebuild`.
 - **M2 — USDZ import pipeline.** `.fileImporter`, copy-into-storage, `Scan` SwiftData record, async load replaces the procedural scene, camera auto-frames, scan persists across relaunch. Test with any `.usdz` the user has on hand (a real Polycam scan isn't needed yet). *Done when:* pick a file, see it rendered/orbitable, still there after relaunch.
 - **M3 — Clip plane, primary approach.** `CustomMaterial` shader-discard along one axis, driven by a slider. This is the milestone to jointly debug the exact RealityKit API surface in Xcode. *Done when:* dragging the slider makes near-side geometry disappear/reappear in real time.
 - **M4 — Clip plane hardening + first real scan.** Add the second orientation preset; ask the user to import an actual Polycam garage scan here to validate against real, dense mesh data (pivot to Fallback A/B here if needed). *Done when:* clip plane behaves acceptably on a real scan with both presets.
@@ -111,4 +113,4 @@ Each one is independently buildable/testable by the user on their Mac before the
 
 ## Verification
 
-Since this session can't compile Swift, each milestone's "done when" above is exactly the user's build/run checkpoint on their Mac. After each milestone lands, the user builds in Xcode (iOS simulator + macOS target), exercises the described behavior, and reports back — issues get fixed before the next milestone starts. Milestone 3 in particular is expected to need iteration once real RealityKit compiler errors surface, since the exact shader-hook API can't be confirmed without Xcode.
+Each milestone's "done when" above is the checkpoint before starting the next. When working directly on the user's Mac, this can be verified directly via `xcodebuild` (and even launching the built app / simulator); otherwise the user builds in Xcode and reports back. Milestone 3 in particular is expected to need iteration once real RealityKit compiler errors surface for the clip-plane shader approach.
