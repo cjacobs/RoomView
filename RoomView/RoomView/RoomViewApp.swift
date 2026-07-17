@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import SwiftData
 import RoomViewKit
 
 @main
@@ -14,5 +15,6 @@ struct RoomViewApp: App {
         WindowGroup {
             RootView()
         }
+        .modelContainer(for: Scan.self)
     }
 }

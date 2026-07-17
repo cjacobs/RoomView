@@ -2,12 +2,15 @@ import SwiftUI
 import RealityKit
 
 public struct SceneContainerView: View {
-    public init() {}
+    let root: Entity
+
+    public init(root: Entity) {
+        self.root = root
+    }
 
     public var body: some View {
         RealityView { content in
-            let room = PlaceholderRoomBuilder.buildRoom()
-            content.add(room)
+            content.add(root)
 
             let camera = PerspectiveCamera()
             camera.camera.fieldOfViewOrientation = .horizontal
@@ -15,7 +18,7 @@ public struct SceneContainerView: View {
             content.add(camera)
 
             content.camera = .virtual
-            content.cameraTarget = room
+            content.cameraTarget = root
         }
         .realityViewCameraControls(.orbit)
     }
