@@ -4,7 +4,6 @@ public struct RootView: View {
     public init() {}
 
     public var body: some View {
-        Text("Hello RoomView")
-            .padding()
+        SceneContainerView()
     }
 }
