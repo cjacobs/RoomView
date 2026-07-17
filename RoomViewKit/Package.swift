@@ -15,7 +15,10 @@ let package = Package(
     ],
     targets: [
         .target(
-            name: "RoomViewKit"
+            name: "RoomViewKit",
+            resources: [
+                .process("Rendering/ClipPlane/Shaders/ClipPlane.metal")
+            ]
         ),
         .testTarget(
             name: "RoomViewKitTests",

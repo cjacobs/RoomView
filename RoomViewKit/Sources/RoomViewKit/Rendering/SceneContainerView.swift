@@ -1,14 +1,16 @@
 import SwiftUI
 import RealityKit
 
-public struct SceneContainerView: View {
+struct SceneContainerView: View {
     let root: Entity
+    var clipPlaneController: ClipPlaneController?
 
-    public init(root: Entity) {
+    init(root: Entity, clipPlaneController: ClipPlaneController? = nil) {
         self.root = root
+        self.clipPlaneController = clipPlaneController
     }
 
-    public var body: some View {
+    var body: some View {
         RealityView { content in
             content.add(root)
 
@@ -19,6 +21,8 @@ public struct SceneContainerView: View {
 
             content.camera = .virtual
             content.cameraTarget = root
+
+            clipPlaneController?.startFollowingCamera(camera, in: content)
         }
         .realityViewCameraControls(.orbit)
     }
