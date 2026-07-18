@@ -10,3 +10,6 @@ DerivedData/
 .build/
 .swiftpm/
 Package.resolved
+
+# Local test scans (large binaries, personal scan data)
+/TestScans/
